@@ -2,6 +2,7 @@ import pandas as pd
 import random
 from datetime import timedelta
 from src.genetic_algorithm import load_historical_games, run_evolution, generate_random_game
+from src.association_rules import generate_apriori_kmeans_games
 
 def evaluate_games(games: list, draws: list) -> dict:
     """
@@ -52,24 +53,31 @@ def main():
     print("Concluído. 10 jogos gerados.")
     
     # 3. Gerar Jogos Aleatórios (Aposta Cega)
+    print("Gerando jogos Aleatórios (Cegos)...")
     random_games = [generate_random_game() for _ in range(10)]
+    
+    # 3.5 Gerar Jogos do Motor B (Apriori + KMeans)
+    print("Executando Motor B (Apriori + K-Means)... isso pode demorar um pouco devido à mineração.")
+    apriori_games = generate_apriori_kmeans_games(df_train, num_games=10)
+    print("Concluído. 10 jogos gerados.")
     
     # 4. Simulação Monte Carlo no Período de Teste
     print("\nSimulando apostas no período de Teste...")
     ga_results = evaluate_games(ga_games, draws_test)
     random_results = evaluate_games(random_games, draws_test)
+    apriori_results = evaluate_games(apriori_games, draws_test)
     
     # 5. Relatório Comparativo
     print("\n================ RESULTADOS DO BACKTESTING ================")
-    print(f"{'Métrica':<15} | {'GA (Otimizado)':<15} | {'Aposta Cega':<15}")
-    print("-" * 50)
+    print(f"{'Métrica':<15} | {'GA (Genético)':<15} | {'Apriori+KMeans':<15} | {'Aposta Cega':<15}")
+    print("-" * 65)
     for hits in [3, 4, 5, 6]:
         label = f"{hits} Acertos"
         if hits == 3: label = "Terno (Prox.)"
         elif hits == 4: label = "Quadra"
         elif hits == 5: label = "Quina"
         elif hits == 6: label = "Sena"
-        print(f"{label:<15} | {ga_results[hits]:<15} | {random_results[hits]:<15}")
+        print(f"{label:<15} | {ga_results[hits]:<15} | {apriori_results[hits]:<15} | {random_results[hits]:<15}")
     print("===========================================================\n")
     print("Nota: 'Terno' não paga prêmio, mas indica que o jogo está cobrindo as áreas corretas do espaço de probabilidade.")
 
