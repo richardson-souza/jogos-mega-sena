@@ -1,0 +1,25 @@
+# Environments
+venv/
+env/
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Pytest
+.pytest_cache/
+
+# Data
+data/processed/
+data/raw/
+*.xlsx
+*.csv
+!sample.csv
+
+# IDEs
+.vscode/
+.idea/
+*.swp
