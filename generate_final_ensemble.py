@@ -23,7 +23,7 @@ def main():
         historical_train.add(frozenset(row.dropna().astype(int)))
         
     print("[1/2] Acionando Algoritmo Genético de Portfólios (Otimização Combinatória + Frequência)...")
-    ga_games = run_evolution(historical_train, freq_train, pop_size=50, generations=100, mutation_rate=0.05)
+    ga_games = run_evolution(historical_train, freq_train, pop_size=50, generations=100, mutation_rate=0.05, method='stacking', dynamic_weights=True)
     
     print("[2/2] Acionando Motor B (Apriori + K-Means Latent Clustering)...")
     apriori_games = generate_apriori_kmeans_games(df_train, num_games=10, n_clusters=5)

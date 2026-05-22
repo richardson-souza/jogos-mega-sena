@@ -34,13 +34,17 @@ def main():
         "Padrão": {'w_freq': 10.0, 'w_apriori': 5.0, 'w_kmeans': 0.5, 'w_hamming': 5.0},
         "A: Foco Espalhamento": {'w_freq': 5.0, 'w_apriori': 1.0, 'w_kmeans': 0.1, 'w_hamming': 20.0},
         "B: Foco Tendência": {'w_freq': 5.0, 'w_apriori': 20.0, 'w_kmeans': 2.0, 'w_hamming': 1.0},
-        "C: Foco Frequência": {'w_freq': 30.0, 'w_apriori': 5.0, 'w_kmeans': 0.5, 'w_hamming': 5.0}
+        "C: Foco Frequência": {'w_freq': 30.0, 'w_apriori': 5.0, 'w_kmeans': 0.5, 'w_hamming': 5.0},
+        "D: Dinâmico (Annealing)": None # Tratado de forma especial
     }
     
     results_portfolios = {}
     
     for profile_name, weights in profiles.items():
         print(f"Executando GA Stacked - Perfil [{profile_name}]...")
+        
+        is_dynamic = True if profile_name == "D: Dinâmico (Annealing)" else False
+        
         portfolio = run_evolution(
             historical_train, 
             freq_train, 
@@ -50,7 +54,8 @@ def main():
             method='stacking', 
             itemsets=valid_itemsets, 
             centroids=centroids,
-            weights_dict=weights
+            weights_dict=weights,
+            dynamic_weights=is_dynamic
         )
         results_portfolios[profile_name] = portfolio
         
@@ -72,11 +77,11 @@ def main():
     for name, port in results_portfolios.items():
         evaluations[name] = evaluate_monte_carlo(port, mc_draws)
         
-    print(f"\n{'Métrica':<15} | {'Padrão':<15} | {'A (Espalhar)':<15} | {'B (Tendência)':<15} | {'C (Frequência)':<15}")
-    print("-" * 85)
+    print(f"\n{'Métrica':<15} | {'Padrão':<15} | {'A (Espalhar)':<15} | {'B (Tendência)':<15} | {'C (Frequência)':<15} | {'D (Dinâmico)':<15}")
+    print("-" * 105)
     for hits in [3, 4, 5, 6]:
         label = f"{hits} Acertos"
-        print(f"{label:<15} | {evaluations['Padrão'][hits]:<15} | {evaluations['A: Foco Espalhamento'][hits]:<15} | {evaluations['B: Foco Tendência'][hits]:<15} | {evaluations['C: Foco Frequência'][hits]:<15}")
+        print(f"{label:<15} | {evaluations['Padrão'][hits]:<15} | {evaluations['A: Foco Espalhamento'][hits]:<15} | {evaluations['B: Foco Tendência'][hits]:<15} | {evaluations['C: Foco Frequência'][hits]:<15} | {evaluations['D: Dinâmico (Annealing)'][hits]:<15}")
     
     print("====================================================================================\n")
 

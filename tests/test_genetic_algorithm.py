@@ -87,6 +87,10 @@ def test_run_evolution_portfolio():
     best_boosted = run_evolution(historical, freq, pop_size=10, generations=2, method='boosted', itemsets=itemsets, portfolio_size=2)
     assert len(best_boosted) == 2
 
+    # Run stacked with dynamic weights
+    best_dynamic = run_evolution(historical, freq, pop_size=10, generations=2, method='stacking', itemsets=itemsets, portfolio_size=2, dynamic_weights=True)
+    assert len(best_dynamic) == 2
+
 def test_individual_game_fitness_custom_weights():
     historical_games = set()
     freq_dict = {1: 0.1, 2: 0.1, 3: 0.1, 4: 0.1, 5: 0.1, 6: 0.1}
