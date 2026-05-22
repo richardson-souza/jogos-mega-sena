@@ -4,4 +4,3 @@ pytest
 openpyxl
 scikit-learn
 mlxtend
-torch
