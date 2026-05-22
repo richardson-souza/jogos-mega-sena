@@ -86,3 +86,20 @@ def test_run_evolution_portfolio():
     itemsets = [[1, 2], [3, 4]]
     best_boosted = run_evolution(historical, freq, pop_size=10, generations=2, method='boosted', itemsets=itemsets, portfolio_size=2)
     assert len(best_boosted) == 2
+
+def test_individual_game_fitness_custom_weights():
+    historical_games = set()
+    freq_dict = {1: 0.1, 2: 0.1, 3: 0.1, 4: 0.1, 5: 0.1, 6: 0.1}
+    itemsets = [[1, 2]]
+    centroids = [[21, 5, 0.5]]
+    
+    game = [1, 2, 3, 4, 5, 6]
+    
+    weights_custom = {'w_freq': 1.0, 'w_apriori': 100.0, 'w_kmeans': 0.1, 'w_hamming': 1.0}
+    score_custom = individual_game_fitness(game, historical_games, freq_dict, method='stacking', itemsets=itemsets, centroids=centroids, weights_dict=weights_custom)
+    
+    weights_zero = {'w_freq': 1.0, 'w_apriori': 0.0, 'w_kmeans': 0.1, 'w_hamming': 1.0}
+    score_zero = individual_game_fitness(game, historical_games, freq_dict, method='stacking', itemsets=itemsets, centroids=centroids, weights_dict=weights_zero)
+    
+    assert score_custom > score_zero
+    assert score_custom - score_zero == 200.0 # len([1, 2]) * 100.0
