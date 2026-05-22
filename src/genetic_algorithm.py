@@ -1,6 +1,7 @@
 import pandas as pd
 import random
 import itertools
+import math
 
 def load_historical_games(filepath: str) -> tuple[set, dict]:
     df = pd.read_csv(filepath)
@@ -26,7 +27,24 @@ def generate_random_game() -> list:
 def generate_random_portfolio(size: int = 10) -> list:
     return [generate_random_game() for _ in range(size)]
 
-def individual_game_fitness(game: list, historical_games: set, frequencies_dict: dict) -> float:
+def generate_boosted_portfolio(size: int, itemsets: list) -> list:
+    """Gera um portfólio usando itemsets do Apriori como sementes de alta probabilidade."""
+    portfolio = []
+    for _ in range(size):
+        if itemsets:
+            seed = set(random.choice(itemsets))
+        else:
+            seed = set()
+            
+        available_numbers = list(set(range(1, 61)) - seed)
+        needed = 6 - len(seed)
+        
+        fill = random.sample(available_numbers, needed) if needed > 0 else []
+        game = sorted(list(seed) + fill)
+        portfolio.append(game)
+    return portfolio
+
+def individual_game_fitness(game: list, historical_games: set, frequencies_dict: dict, method='standard', itemsets=None, centroids=None) -> float:
     score = 0
     
     # Par/Ímpar: 3/3, 4/2, 2/4
@@ -44,21 +62,45 @@ def individual_game_fitness(game: list, historical_games: set, frequencies_dict:
     if frozenset(game) in historical_games:
         score -= 100
         
-    # Bônus de Frequência
-    # Frequência relativa média é ~0.10 (10%) por dezena.
-    # Somando as 6 dezenas, o valor base fica em torno de 0.60
-    # Multiplicador 10 => bônus em torno de +6.0 pontos, o que pesa mas não ofusca as regras vitais.
+    # Bônus de Frequência Histórica
     freq_sum = sum(frequencies_dict.get(num, 0) for num in game)
     score += freq_sum * 10.0
+    
+    # Lógica de Ensemble: Stacking
+    if method == 'stacking':
+        # Recompensa Apriori: +5.0 pontos por cada número envolvido numa regra atendida
+        apriori_score = 0
+        if itemsets:
+            for iset in itemsets:
+                if set(iset).issubset(set(game)):
+                    apriori_score += len(iset) * 5.0
+                    
+        # Penalidade KMeans: Distância ao centroide mais próximo
+        kmeans_score = 0
+        if centroids is not None and len(centroids) > 0:
+            c_soma = total_sum
+            c_spread = max(game) - min(game)
+            c_prop_pares = evens / 6.0
+            
+            min_dist = float('inf')
+            for centroid in centroids:
+                # Centroide: [Soma, Spread, Prop_Pares]
+                dist = math.sqrt((c_soma - centroid[0])**2 + (c_spread - centroid[1])**2 + ((c_prop_pares - centroid[2])*100)**2)
+                if dist < min_dist:
+                    min_dist = dist
+                    
+            # Penalidade suave proporcional à distância da regra latente
+            kmeans_score = - (min_dist * 0.5) 
+            
+        score += apriori_score + kmeans_score
         
     return score
 
-def fitness_function(portfolio: list, historical_games: set, frequencies_dict: dict) -> float:
+def fitness_function(portfolio: list, historical_games: set, frequencies_dict: dict, method='standard', itemsets=None, centroids=None) -> float:
     # Avaliar o portfolio inteiro somando os fitness individuais
-    base_score = sum(individual_game_fitness(game, historical_games, frequencies_dict) for game in portfolio)
+    base_score = sum(individual_game_fitness(game, historical_games, frequencies_dict, method, itemsets, centroids) for game in portfolio)
     
     # Calcular Distância de Hamming entre todos os pares (espalhamento máximo)
-    # Distância de Hamming adaptada: 6 - tamanho da interseção
     total_distance = 0
     pairs = 0
     for g1, g2 in itertools.combinations(portfolio, 2):
@@ -68,13 +110,9 @@ def fitness_function(portfolio: list, historical_games: set, frequencies_dict: d
         pairs += 1
         
     avg_distance = total_distance / pairs if pairs > 0 else 0
-    
-    # Adicionar pontuação baseada na distância para favorecer maior cobertura
-    # Multiplicador 5.0 para dar relevância razoável em relação aos bônus individuais
     return base_score + (avg_distance * 5.0)
 
 def crossover(parent1: list, parent2: list) -> list:
-    # Crossover de portfólios: trocar bilhetes inteiros aleatoriamente
     child = []
     for g1, g2 in zip(parent1, parent2):
         if random.random() < 0.5:
@@ -84,7 +122,6 @@ def crossover(parent1: list, parent2: list) -> list:
     return child
 
 def mutate(portfolio: list, mutation_rate: float) -> list:
-    # Mutação a nível de portfólio: chance de mutar dezenas dentro dos jogos individuais
     new_portfolio = []
     for game in portfolio:
         game_copy = list(game)
@@ -98,24 +135,27 @@ def mutate(portfolio: list, mutation_rate: float) -> list:
         new_portfolio.append(sorted(game_copy))
     return new_portfolio
 
-def run_evolution(historical_games: set, frequencies_dict: dict, pop_size=100, generations=100, mutation_rate=0.05, portfolio_size=10) -> list:
-    # População agora é um conjunto de Portfólios
-    population = [generate_random_portfolio(portfolio_size) for _ in range(pop_size)]
+def run_evolution(historical_games: set, frequencies_dict: dict, pop_size=100, generations=100, mutation_rate=0.05, portfolio_size=10, method='standard', itemsets=None, centroids=None) -> list:
+    
+    # Inicialização da População
+    if method == 'boosted':
+        population = [generate_boosted_portfolio(portfolio_size, itemsets) for _ in range(pop_size)]
+    else:
+        population = [generate_random_portfolio(portfolio_size) for _ in range(pop_size)]
     
     for gen in range(generations):
         # Avaliar fitness
-        scored_pop = [(port, fitness_function(port, historical_games, frequencies_dict)) for port in population]
-        # Ordenar decrescente (maior fitness primeiro)
+        scored_pop = [(port, fitness_function(port, historical_games, frequencies_dict, method, itemsets, centroids)) for port in population]
         scored_pop.sort(key=lambda x: x[1], reverse=True)
         
         # Selecionar os melhores 20%
         top_20_percent_idx = max(1, int(pop_size * 0.2))
         best_individuals = [x[0] for x in scored_pop[:top_20_percent_idx]]
         
-        # Nova população inicia com os melhores (Elitismo)
+        # Elitismo
         new_population = best_individuals.copy()
         
-        # Completar o resto com crossover e mutação
+        # Crossover e mutação
         while len(new_population) < pop_size:
             parent1 = random.choice(best_individuals)
             parent2 = random.choice(best_individuals)
@@ -126,9 +166,8 @@ def run_evolution(historical_games: set, frequencies_dict: dict, pop_size=100, g
         population = new_population
         
     # Ultima avaliação
-    scored_pop = [(port, fitness_function(port, historical_games, frequencies_dict)) for port in population]
+    scored_pop = [(port, fitness_function(port, historical_games, frequencies_dict, method, itemsets, centroids)) for port in population]
     scored_pop.sort(key=lambda x: x[1], reverse=True)
     
-    # Extrair e retornar apenas o MELHOR portfólio absoluto
     best_portfolio = scored_pop[0][0]
     return best_portfolio
