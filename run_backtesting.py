@@ -42,9 +42,14 @@ def main():
     print(f"Período de Treino: {df_train['Data do Sorteio'].min().date()} até {split_date.date()} ({len(df_train)} sorteios)")
     print(f"Período de Teste (Out-of-Sample): {df_test['Data do Sorteio'].min().date()} até {max_date.date()} ({len(df_test)} sorteios)")
     
-    # Criar set histórico de treino para o GA
+    # Criar set histórico de treino e frequencias para o GA
     cols_bolas = ['Bola1', 'Bola2', 'Bola3', 'Bola4', 'Bola5', 'Bola6']
     historical_train = set()
+    
+    all_numbers_train = df_train[cols_bolas].values.flatten()
+    all_numbers_train = all_numbers_train[~pd.isna(all_numbers_train)].astype(int)
+    freq_train = (pd.Series(all_numbers_train).value_counts() / len(df_train)).to_dict()
+    
     for _, row in df_train[cols_bolas].iterrows():
         historical_train.add(frozenset(row.dropna().astype(int)))
         
@@ -56,7 +61,7 @@ def main():
     # 2. Gerar Jogos Otimizados via GA
     print("\nExecutando Algoritmo Genético (apenas no conjunto de treino)...")
     # Reduzido pop_size e generations pois agora o indivíduo é um portfólio inteiro
-    ga_games = run_evolution(historical_train, pop_size=50, generations=100, mutation_rate=0.05)
+    ga_games = run_evolution(historical_train, freq_train, pop_size=50, generations=100, mutation_rate=0.05)
     print("Concluído. 10 jogos gerados.")
     
     # 3. Gerar Jogos Aleatórios (Aposta Cega)
