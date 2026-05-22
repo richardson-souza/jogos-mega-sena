@@ -41,6 +41,7 @@ def train_lstm(model, dataloader, epochs=50):
     criterion = nn.BCELoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     
+    losses = []
     model.train()
     for epoch in range(epochs):
         epoch_loss = 0.0
@@ -51,6 +52,8 @@ def train_lstm(model, dataloader, epochs=50):
             loss.backward()
             optimizer.step()
             epoch_loss += loss.item()
+        losses.append(epoch_loss / len(dataloader))
+    return losses
             
 def predict_top_numbers(model, last_sequence, top_k=15):
     model.eval()
@@ -69,9 +72,9 @@ def predict_top_numbers(model, last_sequence, top_k=15):
         
     return top_numbers
 
+from src.wheeling_systems import generate_greedy_covering
+
 def generate_lstm_games(top_numbers: list, num_games: int = 10):
-    games = []
-    for _ in range(num_games):
-        game = sorted(random.sample(top_numbers, 6))
-        games.append(game)
-    return games
+    # Usar Wheeling System determinístico (Algoritmo Guloso)
+    # Garante cobertura matemática (Quadra) focada nas dezenas mais quentes.
+    return generate_greedy_covering(top_numbers, ticket_size=6, guarantee=4, max_tickets=num_games)
