@@ -2,8 +2,9 @@ import pandas as pd
 import random
 import itertools
 import math
+import numpy as np
 
-def load_historical_games(filepath: str) -> tuple[set, dict]:
+def load_historical_games(filepath: str) -> tuple[set, dict, dict]:
     df = pd.read_csv(filepath)
     cols_bolas = ['Bola1', 'Bola2', 'Bola3', 'Bola4', 'Bola5', 'Bola6']
     historical_set = set()
@@ -17,7 +18,15 @@ def load_historical_games(filepath: str) -> tuple[set, dict]:
     for _, row in df[cols_bolas].iterrows():
         historical_set.add(frozenset(row.dropna().astype(int)))
         
-    return historical_set, frequencies_dict
+    stats = {}
+    if 'Desvio_Padrao' in df.columns:
+        stats['std_mean'] = df['Desvio_Padrao'].mean()
+        stats['std_std'] = df['Desvio_Padrao'].std()
+    else:
+        stats['std_mean'] = 15.0
+        stats['std_std'] = 3.0
+        
+    return historical_set, frequencies_dict, stats
 
 def generate_random_game() -> list:
     return sorted(random.sample(range(1, 61), 6))
@@ -41,9 +50,12 @@ def generate_boosted_portfolio(size: int, itemsets: list) -> list:
         portfolio.append(game)
     return portfolio
 
-def individual_game_fitness(game: list, historical_games: set, frequencies_dict: dict, method='standard', itemsets=None, centroids=None, weights_dict=None) -> float:
+def individual_game_fitness(game: list, historical_games: set, frequencies_dict: dict, method='standard', itemsets=None, centroids=None, weights_dict=None, stats=None) -> float:
     if weights_dict is None:
-        weights_dict = {'w_freq': 10.0, 'w_apriori': 5.0, 'w_kmeans': 0.5, 'w_hamming': 5.0}
+        weights_dict = {
+            'w_freq': 10.0, 'w_apriori': 5.0, 'w_kmeans': 0.5, 'w_hamming': 5.0,
+            'w_consec': 5.0, 'w_std': 5.0, 'w_zone': 5.0
+        }
 
     score = 0
     
@@ -85,13 +97,41 @@ def individual_game_fitness(game: list, historical_games: set, frequencies_dict:
             
         score += apriori_score + kmeans_score
         
+        # --- Novos Guard Rails Físicos ---
+        
+        # 1. Consecutividade
+        count_consec = 0
+        for i in range(len(game)-1):
+            if game[i+1] - game[i] == 1:
+                count_consec += 1
+        if count_consec == 0 or count_consec >= 3:
+            score -= weights_dict['w_consec'] * 10.0
+            
+        # 2. Densidade
+        zones = [0]*6
+        for n in game:
+            zones[(n-1)//10] += 1
+        max_z = max(zones)
+        if max_z >= 4:
+            score -= weights_dict['w_zone'] * 20.0
+            
+        # 3. Desvio Padrão
+        if stats is not None:
+            game_std = np.std(game, ddof=1)
+            std_diff = abs(game_std - stats['std_mean'])
+            if std_diff > (2 * stats['std_std']):
+                score -= weights_dict['w_std'] * (std_diff ** 2)
+        
     return score
 
-def fitness_function(portfolio: list, historical_games: set, frequencies_dict: dict, method='standard', itemsets=None, centroids=None, weights_dict=None) -> float:
+def fitness_function(portfolio: list, historical_games: set, frequencies_dict: dict, method='standard', itemsets=None, centroids=None, weights_dict=None, stats=None) -> float:
     if weights_dict is None:
-        weights_dict = {'w_freq': 10.0, 'w_apriori': 5.0, 'w_kmeans': 0.5, 'w_hamming': 5.0}
+        weights_dict = {
+            'w_freq': 10.0, 'w_apriori': 5.0, 'w_kmeans': 0.5, 'w_hamming': 5.0,
+            'w_consec': 5.0, 'w_std': 5.0, 'w_zone': 5.0
+        }
 
-    base_score = sum(individual_game_fitness(game, historical_games, frequencies_dict, method, itemsets, centroids, weights_dict) for game in portfolio)
+    base_score = sum(individual_game_fitness(game, historical_games, frequencies_dict, method, itemsets, centroids, weights_dict, stats) for game in portfolio)
     
     total_distance = 0
     pairs = 0
@@ -127,7 +167,7 @@ def mutate(portfolio: list, mutation_rate: float) -> list:
         new_portfolio.append(sorted(game_copy))
     return new_portfolio
 
-def run_evolution(historical_games: set, frequencies_dict: dict, pop_size=100, generations=100, mutation_rate=0.05, portfolio_size=10, method='standard', itemsets=None, centroids=None, weights_dict=None, dynamic_weights=False) -> list:
+def run_evolution(historical_games: set, frequencies_dict: dict, pop_size=100, generations=100, mutation_rate=0.05, portfolio_size=10, method='standard', itemsets=None, centroids=None, weights_dict=None, dynamic_weights=False, stats=None) -> list:
     
     if method == 'boosted':
         population = [generate_boosted_portfolio(portfolio_size, itemsets) for _ in range(pop_size)]
@@ -143,10 +183,13 @@ def run_evolution(historical_games: set, frequencies_dict: dict, pop_size=100, g
                 'w_freq': 5.0 * (1 - r) + 30.0 * r,
                 'w_apriori': 20.0 * (1 - r) + 1.0 * r,
                 'w_kmeans': 2.0 * (1 - r) + 0.1 * r,
-                'w_hamming': 5.0
+                'w_hamming': 5.0,
+                'w_consec': 15.0 * (1 - r) + 1.0 * r, # Guard rails fortes no começo
+                'w_std': 15.0 * (1 - r) + 1.0 * r,
+                'w_zone': 20.0 * (1 - r) + 1.0 * r
             }
             
-        scored_pop = [(port, fitness_function(port, historical_games, frequencies_dict, method, itemsets, centroids, current_weights)) for port in population]
+        scored_pop = [(port, fitness_function(port, historical_games, frequencies_dict, method, itemsets, centroids, current_weights, stats)) for port in population]
         scored_pop.sort(key=lambda x: x[1], reverse=True)
         
         top_20_percent_idx = max(1, int(pop_size * 0.2))
@@ -168,9 +211,12 @@ def run_evolution(historical_games: set, frequencies_dict: dict, pop_size=100, g
             'w_freq': 30.0,
             'w_apriori': 1.0,
             'w_kmeans': 0.1,
-            'w_hamming': 5.0
+            'w_hamming': 5.0,
+            'w_consec': 1.0,
+            'w_std': 1.0,
+            'w_zone': 1.0
         }
-    scored_pop = [(port, fitness_function(port, historical_games, frequencies_dict, method, itemsets, centroids, current_weights)) for port in population]
+    scored_pop = [(port, fitness_function(port, historical_games, frequencies_dict, method, itemsets, centroids, current_weights, stats)) for port in population]
     scored_pop.sort(key=lambda x: x[1], reverse=True)
     
     best_portfolio = scored_pop[0][0]

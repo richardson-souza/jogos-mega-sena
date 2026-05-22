@@ -67,6 +67,43 @@ def feature_delay_matrix(df: pd.DataFrame) -> pd.DataFrame:
     df = pd.concat([df, delay_df], axis=1)
     return df
 
+def feature_consecutive_sequences(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    cols_bolas = ['Bola1', 'Bola2', 'Bola3', 'Bola4', 'Bola5', 'Bola6']
+    
+    def count_consecutive(row):
+        nums = sorted(row.dropna().astype(int).tolist())
+        count = 0
+        for i in range(len(nums) - 1):
+            if nums[i+1] - nums[i] == 1:
+                count += 1
+        return count
+        
+    df['Qtd_Consecutivos'] = df[cols_bolas].apply(count_consecutive, axis=1)
+    return df
+
+def feature_std_dev(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    cols_bolas = ['Bola1', 'Bola2', 'Bola3', 'Bola4', 'Bola5', 'Bola6']
+    df['Desvio_Padrao'] = df[cols_bolas].std(axis=1)
+    return df
+
+def feature_zone_density(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    cols_bolas = ['Bola1', 'Bola2', 'Bola3', 'Bola4', 'Bola5', 'Bola6']
+    
+    def max_zone_density(row):
+        nums = row.dropna().astype(int).tolist()
+        zones = [0]*6
+        for n in nums:
+            z = (n - 1) // 10
+            if 0 <= z <= 5:
+                zones[z] += 1
+        return max(zones)
+        
+    df['Max_Densidade_Zona'] = df[cols_bolas].apply(max_zone_density, axis=1)
+    return df
+
 def download_data(url: str) -> pd.DataFrame:
     response = requests.get(url)
     if response.status_code == 200:

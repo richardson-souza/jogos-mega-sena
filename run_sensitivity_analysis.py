@@ -7,17 +7,8 @@ def main():
     filepath = "data/processed/mega_sena_features.csv"
     print("Iniciando Análise de Sensibilidade (Grid Search)...")
     
+    historical_train, freq_train, stats = load_historical_games(filepath)
     df = pd.read_csv(filepath)
-    
-    cols_bolas = ['Bola1', 'Bola2', 'Bola3', 'Bola4', 'Bola5', 'Bola6']
-    historical_train = set()
-    
-    all_numbers_train = df[cols_bolas].values.flatten()
-    all_numbers_train = all_numbers_train[~pd.isna(all_numbers_train)].astype(int)
-    freq_train = (pd.Series(all_numbers_train).value_counts() / len(df)).to_dict()
-    
-    for _, row in df[cols_bolas].iterrows():
-        historical_train.add(frozenset(row.dropna().astype(int)))
         
     print("\nExtraindo Conhecimento de Data Mining (Apriori/KMeans)...")
     itemsets_df = mine_frequent_itemsets(df, min_support=0.01)
@@ -31,11 +22,12 @@ def main():
     
     # Grid de Perfis
     profiles = {
-        "Padrão": {'w_freq': 10.0, 'w_apriori': 5.0, 'w_kmeans': 0.5, 'w_hamming': 5.0},
-        "A: Foco Espalhamento": {'w_freq': 5.0, 'w_apriori': 1.0, 'w_kmeans': 0.1, 'w_hamming': 20.0},
-        "B: Foco Tendência": {'w_freq': 5.0, 'w_apriori': 20.0, 'w_kmeans': 2.0, 'w_hamming': 1.0},
-        "C: Foco Frequência": {'w_freq': 30.0, 'w_apriori': 5.0, 'w_kmeans': 0.5, 'w_hamming': 5.0},
-        "D: Dinâmico (Annealing)": None # Tratado de forma especial
+        "Padrão": {'w_freq': 10.0, 'w_apriori': 5.0, 'w_kmeans': 0.5, 'w_hamming': 5.0, 'w_consec': 5.0, 'w_std': 5.0, 'w_zone': 5.0},
+        "A: Espalhar": {'w_freq': 5.0, 'w_apriori': 1.0, 'w_kmeans': 0.1, 'w_hamming': 20.0, 'w_consec': 1.0, 'w_std': 1.0, 'w_zone': 1.0},
+        "B: Tendência": {'w_freq': 5.0, 'w_apriori': 20.0, 'w_kmeans': 2.0, 'w_hamming': 1.0, 'w_consec': 5.0, 'w_std': 5.0, 'w_zone': 5.0},
+        "C: Frequência": {'w_freq': 30.0, 'w_apriori': 5.0, 'w_kmeans': 0.5, 'w_hamming': 5.0, 'w_consec': 1.0, 'w_std': 1.0, 'w_zone': 1.0},
+        "D: Dinâmico": None, # Tratado de forma especial
+        "E: Físico": {'w_freq': 5.0, 'w_apriori': 5.0, 'w_kmeans': 0.5, 'w_hamming': 5.0, 'w_consec': 30.0, 'w_std': 30.0, 'w_zone': 30.0}
     }
     
     results_portfolios = {}
@@ -43,7 +35,7 @@ def main():
     for profile_name, weights in profiles.items():
         print(f"Executando GA Stacked - Perfil [{profile_name}]...")
         
-        is_dynamic = True if profile_name == "D: Dinâmico (Annealing)" else False
+        is_dynamic = True if profile_name == "D: Dinâmico" else False
         
         portfolio = run_evolution(
             historical_train, 
@@ -55,7 +47,8 @@ def main():
             itemsets=valid_itemsets, 
             centroids=centroids,
             weights_dict=weights,
-            dynamic_weights=is_dynamic
+            dynamic_weights=is_dynamic,
+            stats=stats
         )
         results_portfolios[profile_name] = portfolio
         
@@ -77,13 +70,13 @@ def main():
     for name, port in results_portfolios.items():
         evaluations[name] = evaluate_monte_carlo(port, mc_draws)
         
-    print(f"\n{'Métrica':<15} | {'Padrão':<15} | {'A (Espalhar)':<15} | {'B (Tendência)':<15} | {'C (Frequência)':<15} | {'D (Dinâmico)':<15}")
+    print(f"\n{'Métrica':<15} | {'Padrão':<10} | {'A (Espalhar)':<12} | {'B (Tendência)':<13} | {'C (Frequência)':<14} | {'D (Dinâmico)':<12} | {'E (Físico)':<10}")
     print("-" * 105)
     for hits in [3, 4, 5, 6]:
         label = f"{hits} Acertos"
-        print(f"{label:<15} | {evaluations['Padrão'][hits]:<15} | {evaluations['A: Foco Espalhamento'][hits]:<15} | {evaluations['B: Foco Tendência'][hits]:<15} | {evaluations['C: Foco Frequência'][hits]:<15} | {evaluations['D: Dinâmico (Annealing)'][hits]:<15}")
+        print(f"{label:<15} | {evaluations['Padrão'][hits]:<10} | {evaluations['A: Espalhar'][hits]:<12} | {evaluations['B: Tendência'][hits]:<13} | {evaluations['C: Frequência'][hits]:<14} | {evaluations['D: Dinâmico'][hits]:<12} | {evaluations['E: Físico'][hits]:<10}")
     
-    print("====================================================================================\n")
+    print("=========================================================================================================\n")
 
 if __name__ == "__main__":
     main()

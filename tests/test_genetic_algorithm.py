@@ -24,7 +24,7 @@ def test_load_historical_games(tmp_path):
         'Bola6': [11, 12]
     }
     pd.DataFrame(data).to_csv(csv_file, index=False)
-    historical, frequencies = load_historical_games(str(csv_file))
+    historical, frequencies, stats = load_historical_games(str(csv_file))
     assert len(historical) == 2
     assert frequencies[1] == 0.5
 
@@ -99,10 +99,10 @@ def test_individual_game_fitness_custom_weights():
     
     game = [1, 2, 3, 4, 5, 6]
     
-    weights_custom = {'w_freq': 1.0, 'w_apriori': 100.0, 'w_kmeans': 0.1, 'w_hamming': 1.0}
+    weights_custom = {'w_freq': 1.0, 'w_apriori': 100.0, 'w_kmeans': 0.1, 'w_hamming': 1.0, 'w_consec': 1.0, 'w_std': 1.0, 'w_zone': 1.0}
     score_custom = individual_game_fitness(game, historical_games, freq_dict, method='stacking', itemsets=itemsets, centroids=centroids, weights_dict=weights_custom)
     
-    weights_zero = {'w_freq': 1.0, 'w_apriori': 0.0, 'w_kmeans': 0.1, 'w_hamming': 1.0}
+    weights_zero = {'w_freq': 1.0, 'w_apriori': 0.0, 'w_kmeans': 0.1, 'w_hamming': 1.0, 'w_consec': 1.0, 'w_std': 1.0, 'w_zone': 1.0}
     score_zero = individual_game_fitness(game, historical_games, freq_dict, method='stacking', itemsets=itemsets, centroids=centroids, weights_dict=weights_zero)
     
     assert score_custom > score_zero
