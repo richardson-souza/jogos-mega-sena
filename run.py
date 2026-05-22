@@ -6,7 +6,10 @@ from src.etl import (
     feature_sum, 
     feature_even_odd, 
     feature_spread, 
-    feature_delay_matrix
+    feature_delay_matrix,
+    feature_consecutive_sequences,
+    feature_std_dev,
+    feature_zone_density
 )
 
 def main():
@@ -45,6 +48,15 @@ def main():
     
     print("Calculando Matriz de Atraso (Isso pode demorar alguns segundos)...")
     df = feature_delay_matrix(df)
+    
+    print("Calculando Consecutividade...")
+    df = feature_consecutive_sequences(df)
+    
+    print("Calculando Desvio Padrão...")
+    df = feature_std_dev(df)
+    
+    print("Calculando Densidade de Zona...")
+    df = feature_zone_density(df)
     
     print(f"Salvando dataset final com as features em: {output_file}")
     df.to_csv(output_file, index=False)

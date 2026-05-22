@@ -13,17 +13,12 @@ def main():
     df_train = pd.read_csv(filepath)
     
     cols_bolas = ['Bola1', 'Bola2', 'Bola3', 'Bola4', 'Bola5', 'Bola6']
-    historical_train = set()
+    historical_train, freq_train, stats = load_historical_games(filepath)
     
-    all_numbers_train = df_train[cols_bolas].values.flatten()
-    all_numbers_train = all_numbers_train[~pd.isna(all_numbers_train)].astype(int)
-    freq_train = (pd.Series(all_numbers_train).value_counts() / len(df_train)).to_dict()
+    print(f"[Info] Estatísticas base: Média do Desvio Padrão = {stats['std_mean']:.2f}")
     
-    for _, row in df_train[cols_bolas].iterrows():
-        historical_train.add(frozenset(row.dropna().astype(int)))
-        
     print("[1/2] Acionando Algoritmo Genético de Portfólios (Otimização Combinatória + Frequência)...")
-    ga_games = run_evolution(historical_train, freq_train, pop_size=50, generations=100, mutation_rate=0.05, method='stacking', dynamic_weights=True)
+    ga_games = run_evolution(historical_train, freq_train, pop_size=50, generations=100, mutation_rate=0.05, method='stacking', dynamic_weights=True, stats=stats)
     
     print("[2/2] Acionando Motor B (Apriori + K-Means Latent Clustering)...")
     apriori_games = generate_apriori_kmeans_games(df_train, num_games=10, n_clusters=5)
@@ -39,6 +34,12 @@ def main():
         formatted_game = " - ".join([f"{n:02d}" for n in sorted(game)])
         print(f"Bilhete B{i:02d}: [ {formatted_game} ]")
         
+    print("\n--- Validação Física do Portfólio GA (Estratégia A) ---")
+    import numpy as np
+    stds = [np.std(game, ddof=1) for game in ga_games]
+    avg_std = np.mean(stds)
+    print(f"Desvio Padrão Médio dos Bilhetes Gerados: {avg_std:.2f} (Alvo Base: {stats['std_mean']:.2f})")
+    
     print("\n================ BOA SORTE NO SORTEIO ESPECIAL! ================\n")
 
 if __name__ == "__main__":
