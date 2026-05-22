@@ -9,13 +9,14 @@ def main():
         return
         
     print(f"Carregando histórico de {filepath}...")
-    historical_games = load_historical_games(filepath)
+    historical_games, frequencies = load_historical_games(filepath)
     print(f"{len(historical_games)} jogos carregados.")
     
     print("Iniciando algoritmo genético. Isso pode demorar um pouco...")
     # Usaremos 500 gerações e 1000 indivíduos conforme abordagem.
     best_games = run_evolution(
         historical_games=historical_games, 
+        frequencies_dict=frequencies,
         pop_size=1000, 
         generations=500, 
         mutation_rate=0.05
