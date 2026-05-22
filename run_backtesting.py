@@ -1,7 +1,9 @@
 import pandas as pd
 import random
+import argparse
+import numpy as np
 from datetime import timedelta
-from src.genetic_algorithm import load_historical_games, run_evolution, generate_random_game
+from src.genetic_algorithm import load_historical_games, run_evolution, generate_random_portfolio
 from src.association_rules import generate_apriori_kmeans_games
 
 def evaluate_games(games: list, draws: list) -> dict:
@@ -19,6 +21,10 @@ def evaluate_games(games: list, draws: list) -> dict:
     return results
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--monte-carlo', action='store_true', help='Executar teste de estresse Monte Carlo (1M sorteios)')
+    args = parser.parse_args()
+
     filepath = "data/processed/mega_sena_features.csv"
     print("Iniciando Módulo de Backtesting...")
     
@@ -49,12 +55,13 @@ def main():
         
     # 2. Gerar Jogos Otimizados via GA
     print("\nExecutando Algoritmo Genético (apenas no conjunto de treino)...")
-    ga_games = run_evolution(historical_train, pop_size=1000, generations=500, mutation_rate=0.05)
+    # Reduzido pop_size e generations pois agora o indivíduo é um portfólio inteiro
+    ga_games = run_evolution(historical_train, pop_size=50, generations=100, mutation_rate=0.05)
     print("Concluído. 10 jogos gerados.")
     
     # 3. Gerar Jogos Aleatórios (Aposta Cega)
     print("Gerando jogos Aleatórios (Cegos)...")
-    random_games = [generate_random_game() for _ in range(10)]
+    random_games = generate_random_portfolio(10)
     
     # 3.5 Gerar Jogos do Motor B (Apriori + KMeans)
     print("Executando Motor B (Apriori + K-Means)... isso pode demorar um pouco devido à mineração.")
@@ -80,6 +87,38 @@ def main():
         print(f"{label:<15} | {ga_results[hits]:<15} | {apriori_results[hits]:<15} | {random_results[hits]:<15}")
     print("===========================================================\n")
     print("Nota: 'Terno' não paga prêmio, mas indica que o jogo está cobrindo as áreas corretas do espaço de probabilidade.")
+
+    if args.monte_carlo:
+        print("\n================ ESTRESSE DE MONTE CARLO (1.000.000 Sorteios) ================")
+        print("Gerando 1.000.000 de sorteios aleatórios sintéticos (isso pode levar uns segundos)...")
+        # Estratégia ultra-rápida: sortear índices aleatórios de 60 bolas para gerar 1M combinações sem repetição
+        mc_draws = np.argsort(np.random.rand(1000000, 60), axis=1)[:, :6] + 1
+        
+        print("Avaliando bilhetes contra a base sintética vetorizada...")
+        def evaluate_monte_carlo(games_list, draws_matrix):
+            results = {3: 0, 4: 0, 5: 0, 6: 0}
+            for game in games_list:
+                # np.isin é vetorizado. Retorna booleano. Somamos o eixo 1 para ter os acertos por sorteio.
+                mask = np.isin(draws_matrix, game)
+                hits_per_draw = mask.sum(axis=1)
+                for k in results.keys():
+                    results[k] += np.sum(hits_per_draw == k)
+            return results
+            
+        ga_mc = evaluate_monte_carlo(ga_games, mc_draws)
+        rand_mc = evaluate_monte_carlo(random_games, mc_draws)
+        apriori_mc = evaluate_monte_carlo(apriori_games, mc_draws)
+        
+        print(f"{'Métrica':<15} | {'GA (Genético)':<15} | {'Apriori+KMeans':<15} | {'Aposta Cega':<15}")
+        print("-" * 65)
+        for hits in [3, 4, 5, 6]:
+            label = f"{hits} Acertos"
+            print(f"{label:<15} | {ga_mc[hits]:<15} | {apriori_mc[hits]:<15} | {rand_mc[hits]:<15}")
+        
+        # Calcular ROI básico: custo da aposta = 5.0 reais
+        # Quadra média = 1000 reais, Quina = 50k, Sena = 50M
+        print("\n* P-Value Simplificado: Avaliando se a performance difere da Aleatória em larga escala *")
+        print("==============================================================================\n")
 
 if __name__ == "__main__":
     main()
