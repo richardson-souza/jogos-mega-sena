@@ -23,3 +23,5 @@ data/raw/
 .vscode/
 .idea/
 *.swp
+
+lstm_model.pth

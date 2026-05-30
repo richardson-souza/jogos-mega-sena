@@ -3,8 +3,13 @@ import numpy as np
 from src.genetic_algorithm import load_historical_games, run_evolution
 from src.association_rules import mine_frequent_itemsets, train_kmeans_clusters
 
+import argparse
+
 def main():
-    filepath = "data/processed/mega_sena_features.csv"
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--filepath', type=str, default="data/processed/mega_sena_features.csv", help='Caminho do dataset')
+    args = parser.parse_args()
+    filepath = args.filepath
     print("Iniciando Análise de Sensibilidade (Grid Search)...")
     
     historical_train, freq_train, stats = load_historical_games(filepath)

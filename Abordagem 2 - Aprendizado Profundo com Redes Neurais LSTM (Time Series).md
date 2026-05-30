@@ -6,7 +6,7 @@
 
 **Instruções de Implementação para o Agente:**
 
-1. **Transformação do Dataset:** Converta o `sample.csv` em um formato *One-Hot Encoded* ou de frequências cumulativas, onde cada linha é um vetor de tamanho 60. O valor 1 indica se a bola saiu, 0 se não.
+1. **Transformação do Dataset:** Converta o `data/processed/mega_sena_features.csv` em um formato *One-Hot Encoded* ou de frequências cumulativas, onde cada linha é um vetor de tamanho 60. O valor 1 indica se a bola saiu, 0 se não.
 2. **Janela Deslizante:** Crie sequências temporais de janela fixa (ex: os últimos 20 sorteios preveem os números do 21º sorteio).
 3. **Arquitetura da Rede:** * Camada de Entrada: `(Tamanho da Janela, 60)`.
 * Camadas LSTM Ocultas com Dropout para evitar *overfitting*.

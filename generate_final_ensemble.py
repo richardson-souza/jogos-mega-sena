@@ -3,8 +3,13 @@ import numpy as np
 from src.genetic_algorithm import load_historical_games, run_evolution
 from src.association_rules import generate_apriori_kmeans_games
 
+import argparse
+
 def main():
-    filepath = "data/processed/mega_sena_features.csv"
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--filepath', type=str, default="data/processed/mega_sena_features.csv", help='Caminho do dataset')
+    args = parser.parse_args()
+    filepath = args.filepath
     
     print("=========================================================")
     print(" 🚀 INICIANDO GERAÇÃO DO ENSEMBLE PARA O CONCURSO 3010 🚀 ")

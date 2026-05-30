@@ -19,9 +19,10 @@ def evaluate_games(games: list, draws: list) -> dict:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--monte-carlo', action='store_true', help='Executar teste de estresse Monte Carlo (1M sorteios)')
+    parser.add_argument('--filepath', type=str, default="data/processed/mega_sena_features.csv", help='Caminho do dataset')
     args = parser.parse_args()
 
-    filepath = "data/processed/mega_sena_features.csv"
+    filepath = args.filepath
     print("Iniciando Módulo de Backtesting...")
     
     df = pd.read_csv(filepath)

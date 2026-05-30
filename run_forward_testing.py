@@ -11,8 +11,13 @@ def get_real_future_draws():
         [4, 6, 8, 18, 21, 30]     # Concurso 3009 (16/05/2026)
     ]
 
+import argparse
+
 def main():
-    filepath = "data/processed/mega_sena_features.csv"
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--filepath', type=str, default="data/processed/mega_sena_features.csv", help='Caminho do dataset')
+    args = parser.parse_args()
+    filepath = args.filepath
     print("Iniciando Módulo de Forward Testing (Paper Trading) com DADOS REAIS...")
     
     # 1. Carregamento do Treino (Até 24 Jan 2026 - que é o limite da base atual)
