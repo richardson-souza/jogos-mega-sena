@@ -20,14 +20,10 @@ def main():
     filepath = args.filepath
     print("Iniciando Módulo de Forward Testing (Paper Trading) com DADOS REAIS...")
     
-    # 1. Carregamento do Treino (Até 24 Jan 2026 - que é o limite da base atual)
+    # 1. Carregamento do Treino
     df_train = pd.read_csv(filepath)
-    print(f"Base de conhecimento isolada. {len(df_train)} sorteios carregados para treino.")
-    
-    cols_bolas = ['Bola1', 'Bola2', 'Bola3', 'Bola4', 'Bola5', 'Bola6']
-    historical_train = set()
-    for _, row in df_train[cols_bolas].iterrows():
-        historical_train.add(frozenset(row.dropna().astype(int)))
+    historical_train, freq_train, stats = load_historical_games(filepath)
+    print(f"Base de conhecimento isolada. {len(historical_train)} sorteios carregados para treino.")
         
     # 2. Mock do Futuro (Fev a Mai 2026) -> Agora usando Sorteios Reais!
     print("Injetando os sorteios REAIS recentes de Maio/2026 (Concursos 3008 e 3009)...")
@@ -35,7 +31,14 @@ def main():
     
     # 3. Geração do Ensemble de Ouro
     print("\n[Motor A] Gerando os 10 melhores bilhetes via Algoritmo Genético...")
-    ga_games = run_evolution(historical_train, pop_size=1000, generations=500, mutation_rate=0.05)
+    ga_games = run_evolution(
+        historical_games=historical_train, 
+        frequencies_dict=freq_train, 
+        pop_size=1000, 
+        generations=500, 
+        mutation_rate=0.05,
+        stats=stats
+    )
     
     print("[Motor B] Gerando os 10 melhores bilhetes via Apriori + K-Means...")
     apriori_games = generate_apriori_kmeans_games(df_train, num_games=10, n_clusters=5)
